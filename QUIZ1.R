@@ -7,7 +7,7 @@ file.info("en_US.blogs.txt")$size/1024/1024
 
 #q2. The en_US.twitter.txt has how many lines of text?
 library(R.utils)
-countLines("en_US.twitter.txt")
+countLines("en_US.twitter.txt") 
 length(readLines("en_US.twitter.txt"))
 
 #q3. What is the length of the longest line seen in any of the three en_US data sets?
