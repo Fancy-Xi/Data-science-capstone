@@ -1,0 +1,129 @@
+---
+title: 'Peer-graded Assignment: Milestone Report'
+author: "Xi Fang"
+date: "8/18/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## load data
+
+```{r data}
+library(stringi)
+files <- c("en_US.twitter.txt", "en_US.blogs.txt","en_US.news.txt")
+text <- list(blogs = "", news = "", twitter = "")
+summary <- matrix(0, nrow = 3, ncol = 3, dimnames = list(c("blogs", "news", "twitter"),c("file size, Mb", "lines", "words")))
+for (i in 1:3) {
+  con <- file(files[i], "rb")
+  text[[i]] <- readLines(con, encoding = "UTF-8",skipNul = TRUE)
+  close(con)
+  summary[i,1] <- round(file.info(files[i])$size / 1024^2, 2)
+  summary[i,2] <- length(text[[i]])
+  summary[i,3] <- sum(stri_count_words(text[[i]]))
+}
+summary
+```
+
+## random sampling
+Since the original dataset is big, we sampled a small portion (0.5%) of the data. We will use this sampled data for subsequent analysis.
+```{r sample}
+set.seed(2020)
+bs <- sample(text$blogs, 0.005*length(text$blogs))
+ns <- sample(text$news, 0.005*length(text$news))
+ts <- sample(text$twitter, 0.005*length(text$twitter))
+samples <- c(bs, ns, ts)
+length(samples)
+sum(stri_count_words(samples))
+```
+The newly sampled dataset has 21347 lines and 519137 words.
+
+## word frequency
+
+```{r freq}
+library(tm)
+library(quanteda)
+corpus <- Corpus(VectorSource(samples))
+corpus <- corpus %>%
+        tm_map(tolower) %>%
+        tm_map(removePunctuation) %>%
+        tm_map(removeNumbers) %>%
+        tm_map(stemDocument) %>%
+        tm_map(removeWords, stopwords('english'))
+inspect(corpus[1:3]) # check the first 3 lines of corpus
+freq <- TermDocumentMatrix(corpus)
+# delete words appears less than 0.05 % frequency
+word <- removeSparseTerms(freq, 0.995)
+wordfreq <- head(sort(rowSums(as.matrix(word)), decreasing=TRUE), 15)
+barplot(wordfreq, main = "Most frequent words", xlab = "Word", ylab = "Count",col = rainbow(50))
+
+```
+
+
+## Word cloud
+```{r cloud}
+library(wordcloud)   
+v <- sort(rowSums(as.matrix(word)), decreasing = TRUE)
+wordcloud(words = names(v),
+          freq = v,
+          max.words = 80,
+          random.order = F,
+          min.freq = 300,
+          colors = brewer.pal (8, 'Dark2'), scale = c(3, 0.4))
+
+```
+This word clooud shows the words with minimum 300 frequency in the sampled dataset.
+
+## Tokenization and n-gram
+```{r token}
+library(tokenizers)
+unigram <- tokenize_ngrams(samples, lowercase=TRUE, n = 1)
+bigram <- tokenize_ngrams(samples, lowercase=TRUE, n = 2)
+trigram <- tokenize_ngrams(samples, lowercase=TRUE, n = 3)
+
+unigram.df <- data.frame(table(unigram))
+unigram.df <- unigram.df[order(unigram.df$Freq, decreasing = TRUE),]
+
+
+library(dplyr)
+library(tidytext)
+library(janeaustenr)
+unnest_tokens(samples, token = "ngrams", n = 2)
+
+
+BigramTokenizer <- function(x) {RWeka::NGramTokenizer(x, RWeka::Weka_control(min = 2, max = 2))}
+
+bigramTDM <- TermDocumentMatrix(myCorpus_nostop, control=list(tokenize = BigramTokenizer))
+
+bigramTDM <- removeSparseTerms(bigramTDM, 0.999)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
