@@ -7,12 +7,6 @@ output: github_document
         
 
 
-
-## Setup prediction model
-go <- Sys.time()
-library(tidyverse)
-library(stringr)
-
 bigram_w <- readRDS("bigram_w.rds")
 trigram_w <- readRDS("trigram_w.rds")
 quadigram_w <- readRDS("quadgram_w.rds")
