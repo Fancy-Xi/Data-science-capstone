@@ -1,0 +1,137 @@
+---
+title: "Prediction for shiny"
+author: "Xi Fang"
+date: "8/19/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load data
+```{r data}
+bf   <- "en_US.blogs.txt"
+nf    <- "en_US.news.txt"
+tf    <- "en_US.twitter.txt"  
+b <- readLines(bf, skipNul = TRUE)
+n <- readLines(nf, skipNul = TRUE)
+t <- readLines(tf, skipNul = TRUE)
+
+## create dataframe
+b <- data.frame(text=b)
+n <- data.frame(text=n)
+t <- data.frame(text=t)
+
+```
+
+## Random sampling
+```{r sample}
+set.seed(2020)
+library(dplyr)
+bs <- b %>%
+        sample_n(.,nrow(b)*0.1)
+ns <- n %>%
+        sample_n(.,nrow(n)*0.1)
+ts <- t %>%
+        sample_n(.,nrow(t)*0.1)
+
+## combine and create tidy sample data
+t_sample <- bind_rows(mutate(bs, source="blogs"),
+                      mutate(ns, source="news"),
+                      mutate(ts, source="twitter"))
+t_sample$source <- as.factor(t_sample$source)
+rm(list = c("b", "bf", "bs","n", "nf",     
+            "ns", "t","tf", 
+            "ts"))
+
+```
+
+## Clean the sample data
+```{r clean}
+replace_reg <- "[^[:alpha:][:space:]]*" # create filters for non-alphanumeric’s
+replace_url <- "http[^[:space:]]*" # create filters for url's
+replace_aaa <- "\\b(?=\\w*(\\w)\\1)\\w+\\b"  # create filters for letters repeated over three times
+
+## create clean samples based on tidy samples
+library("stringr")
+library(dplyr)
+c_sample <- t_sample %>%
+        mutate(text = str_replace_all(text, replace_reg, "")) %>%
+        mutate(text = str_replace_all(text, replace_url, "")) %>%
+        mutate(text = str_replace_all(text, replace_aaa, "")) %>% 
+        mutate(text = iconv(text, "ASCII//TRANSLIT"))
+
+rm(list = c("t_sample"))
+```
+
+
+## Create n-grams
+```{r ngram}
+library(tidytext)
+bigram_rp <- c_sample  %>%
+  unnest_tokens(bigram, text, token = "ngrams", n = 2, collapse = FALSE)
+trigram_rp <- c_sample  %>%
+  unnest_tokens(trigram, text, token = "ngrams", n = 3, collapse = FALSE)
+quadgram_rp <- c_sample  %>%
+  unnest_tokens(quadgram, text, token = "ngrams", n = 4, collapse = FALSE)
+quintgram_rp <- c_sample  %>%
+  unnest_tokens(quintgram, text, token = "ngrams", n = 5, collapse = FALSE)
+```
+
+## Reduce the n-gram dataset
+
+```{r reduce}
+bigram_c <- bigram_rp %>%
+        count(bigram) %>%
+        filter(n>10) %>%
+        arrange(desc(n))
+rm(list = c("bigram_rp"))
+
+trigram_c <- trigram_rp %>%
+        count(trigram) %>%
+        filter(n>10) %>%
+        arrange(desc(n))
+rm(list = c("trigram_rp"))
+
+quadgram_c <- quadgram_rp %>%
+        count(quadgram) %>%
+        filter(n>10) %>%
+        arrange(desc(n))
+rm(list = c("quadgram_rp"))
+
+quintgram_c <- quintgram_rp %>%
+        count(quintgram) %>%
+        filter(n>10) %>%
+        arrange(desc(n))
+rm(list = c("quintgram_rp"))
+```
+
+
+## Separate the words in n-gram dataset
+```{r separate}
+library(tidyr)
+bigram_w <- bigram_c %>%
+  separate(bigram, c("word1", "word2"), sep = " ")
+bigram_w
+
+trigram_w <- trigram_c %>%
+  separate(trigram, c("word1", "word2","word3"), sep = " ")
+trigram_w
+
+quadgram_w <- quadgram_c %>%
+  separate(quadgram, c("word1", "word2","word3", "word4"), sep = " ")
+quadgram_w
+
+quintgram_w <- quintgram_c %>%
+  separate(quintgram, c("word1", "word2","word3","word4","word5"), sep = " ")
+quintgram_w
+
+## Save these files for shiny
+saveRDS(bigram_w, "bigram_w.rds")
+saveRDS(trigram_w, "trigram_w.rds")
+saveRDS(quadgram_w,"quadgram_w.rds")
+saveRDS(quintgram_w,"quintgram_w.rds")
+
+```
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
