@@ -71,12 +71,17 @@ rm(list = c("t_sample"))
 library(tidytext)
 bigram_rp <- c_sample  %>%
   unnest_tokens(bigram, text, token = "ngrams", n = 2, collapse = FALSE)
+
 trigram_rp <- c_sample  %>%
   unnest_tokens(trigram, text, token = "ngrams", n = 3, collapse = FALSE)
+sum(is.na(trigram_rp)) # check how many NAs
+
 quadgram_rp <- c_sample  %>%
   unnest_tokens(quadgram, text, token = "ngrams", n = 4, collapse = FALSE)
+
 quintgram_rp <- c_sample  %>%
   unnest_tokens(quintgram, text, token = "ngrams", n = 5, collapse = FALSE)
+
 ```
 
 ## Reduce the n-gram dataset
@@ -92,7 +97,7 @@ trigram_c <- trigram_rp %>%
         count(trigram) %>%
         filter(n>10) %>%
         arrange(desc(n))
-rm(list = c("trigram_rp"))
+#rm(list = c("trigram_rp"))
 
 quadgram_c <- quadgram_rp %>%
         count(quadgram) %>%
@@ -107,6 +112,50 @@ quintgram_c <- quintgram_rp %>%
 rm(list = c("quintgram_rp"))
 ```
 
+## ngram figures
+```{r plots}
+bigram_c %>%
+  top_n(20, n) %>%
+  mutate(bigram = reorder(bigram, n)) %>%
+  ggplot(aes(bigram, n)) +
+  geom_col() +
+  xlab(NULL) +
+  coord_flip() +
+  ggtitle("Bigrams")
+ggsave("bigram.png")
+
+trigram_c %>%
+  top_n(20, n) %>%
+  mutate(trigram = reorder(trigram, n)) %>%
+  ggplot(aes(trigram, n)) +
+  geom_col() +
+  xlab(NULL) +
+  coord_flip() +
+  ggtitle("Trigrams")
+ggsave("trigram.png")
+
+
+quadgram_c %>%
+  top_n(20, n) %>%
+  mutate(quadgram = reorder(quadgram, n)) %>%
+  ggplot(aes(quadgram, n)) +
+  geom_col() +
+  xlab(NULL) +
+  coord_flip() +
+  ggtitle("Quadgrams")
+ggsave("quadgram.png")
+
+quintgram_c %>%
+  top_n(20, n) %>%
+  mutate(quintgram = reorder(quintgram, n)) %>%
+  ggplot(aes(quintgram, n)) +
+  geom_col() +
+  xlab(NULL) +
+  coord_flip() +
+  ggtitle("Quintgrams")
+ggsave("quintgram.png")
+
+```
 
 ## Separate the words in n-gram dataset
 ```{r separate}
@@ -133,5 +182,90 @@ saveRDS(trigram_w, "trigram_w.rds")
 saveRDS(quadgram_w,"quadgram_w.rds")
 saveRDS(quintgram_w,"quintgram_w.rds")
 
+```
+
+
+## Setup prediction model
+```{r setup}
+go <- Sys.time()
+library(tidyverse)
+library(stringr)
+
+bigram_w <- readRDS("bigram_w.rds")
+trigram_w <- readRDS("trigram_w.rds")
+quadigram_w <- readRDS("quadgram_w.rds")
+quintigram_w <- readRDS("quintgram_w.rds")
+
+```
+
+## Create prediction model
+```{r predict}
+bigram <- function(input_words){
+                    num <- length(input_words)
+                    filter(bigram_w, 
+                          word1==input_words[num]) %>% 
+                    top_n(1, n) %>%
+                    filter(row_number() == 1L) %>%
+                    select(num_range("word", 2)) %>%
+                    as.character() -> out
+                    ifelse(out =="character(0)", "?", return(out))
+}
+
+
+trigram <- function(input_words){
+                    num <- length(input_words)
+                    filter(trigram_w, 
+                            word1==input_words[num-1], 
+                            word2==input_words[num])  %>% 
+                    top_n(1, n) %>%
+                    filter(row_number() == 1L) %>%
+                    select(num_range("word", 3)) %>%
+                    as.character() -> out
+                    ifelse(out=="character(0)", bigram(input_words), return(out))
+}
+
+
+quadgram <- function(input_words){
+                    num <- length(input_words)
+                    filter(quadgram_w, 
+                            word1==input_words[num-2], 
+                            word2==input_words[num-1], 
+                            word3==input_words[num])  %>% 
+                    top_n(1, n) %>%
+                    filter(row_number() == 1L) %>%
+                    select(num_range("word", 4)) %>%
+                    as.character() -> out
+                    ifelse(out=="character(0)", trigram(input_words), return(out))
+}
+
+```
+
+
+##  User input
+```{r user}
+ngrams <- function(input){
+  # Create a dataframe
+  input <- data_frame(text = input)
+  # Clean the Inpput
+  replace_reg <- "[^[:alpha:][:space:]]*"
+  input <- input %>%
+    mutate(text = str_replace_all(text, replace_reg, ""))
+  # Find word count, separate words, lower case
+  input_count <- str_count(input, boundary("word"))
+  input_words <- unlist(str_split(input, boundary("word")))
+  input_words <- tolower(input_words)
+  # Call the matching functions
+  out <- ifelse(input_count == 1, bigram(input_words), 
+              ifelse (input_count == 2, trigram(input_words), quadgram(input_words)))
+  # Output
+  return(out)
+}
+
+input <- "In case of a"
+ngrams(input)
+
+## Give back the time
+stop <- Sys.time()
+(how_long <- stop - go)
 ```
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
