@@ -71,22 +71,27 @@ rm(list = c("t_sample"))
 library(tidytext)
 bigram_rp <- c_sample  %>%
   unnest_tokens(bigram, text, token = "ngrams", n = 2, collapse = FALSE)
+bigram_rp <- na.omit(bigram_rp)
 
 trigram_rp <- c_sample  %>%
   unnest_tokens(trigram, text, token = "ngrams", n = 3, collapse = FALSE)
 sum(is.na(trigram_rp)) # check how many NAs
+trigram_rp <- na.omit(trigram_rp) # remove NAs
 
 quadgram_rp <- c_sample  %>%
   unnest_tokens(quadgram, text, token = "ngrams", n = 4, collapse = FALSE)
+quadgram_rp <- na.omit(quadgram_rp)
 
 quintgram_rp <- c_sample  %>%
   unnest_tokens(quintgram, text, token = "ngrams", n = 5, collapse = FALSE)
+quintgram_rp <- na.omit(quintgram_rp)
 
 ```
 
 ## Reduce the n-gram dataset
 
 ```{r reduce}
+library(dplyr)
 bigram_c <- bigram_rp %>%
         count(bigram) %>%
         filter(n>10) %>%
@@ -114,6 +119,7 @@ rm(list = c("quintgram_rp"))
 
 ## ngram figures
 ```{r plots}
+library(ggplot2)
 bigram_c %>%
   top_n(20, n) %>%
   mutate(bigram = reorder(bigram, n)) %>%

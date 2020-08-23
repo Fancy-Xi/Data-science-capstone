@@ -1,9 +1,9 @@
----
-title: "Prediction for shiny"
-author: "Xi Fang"
-date: "8/19/2020"
-output: github_document
----
+
+#title: "Prediction for shiny"
+#author: "Xi Fang"
+#date: "8/19/2020"
+#output: github_document
+
         
 
 
